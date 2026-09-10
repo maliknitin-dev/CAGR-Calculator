@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<!--
+  ===========================================================================
+  CAGR Calculator - Compound Annual Growth Rate
+  ---------------------------------------------------------------------------
+  This is a SINGLE-FILE web app. It contains three things in order:
+    1. HTML  - the structure (the form the user sees)
+    2. CSS   - the looks (colors, spacing, layout) inside <style>
+    3. JS    - the logic (the math) inside <script>
+  To run it: just double-click this file, or open it in any web browser.
+  No installation, no build step, no internet connection needed.
+  ===========================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CAGR Calculator</title>
+
+  <style>
+    /* -------------------------------------------------------------------
+       CSS = how everything LOOKS.
+       We use a few simple building blocks:
+         - :root      -> reusable color variables (so we don't repeat colors)
+         - .card      -> the white panel in the middle of the screen
+         - input      -> the boxes where the user types numbers
+         - .result    -> the green box that shows the answer
+         - .error     -> the red box that shows a problem message
+       ------------------------------------------------------------------- */
+
+    /* Reusable color values. Change these to re-theme the whole app. */
+    :root {
+      --bg: #0f172a;            /* page background (dark navy) */
+      --card: #ffffff;          /* card background (white) */
+      --text: #1e293b;          /* normal text (dark slate) */
+      --muted: #64748b;         /* secondary/grey text */
+      --brand: #2563eb;         /* main blue accent color */
+      --brand-dark: #1d4ed8;    /* darker blue for button hover */
+      --green-bg: #dcfce7;      /* light green result background */
+      --green-text: #166534;    /* dark green result text */
+      --red-bg: #fee2e2;        /* light red error background */
+      --red-text: #991b1b;      /* dark red error text */
+      --border: #cbd5e1;        /* light grey border lines */
+    }
+
+    /* Remove default spacing so our own layout is predictable. */
+    * { box-sizing: border-box; }
+
+    /* The whole page: dark background, centered content. */
+    body {
+      margin: 0;
+      min-height: 100vh;                     /* fill the full screen height */
+      display: flex;                         /* flexbox lets us center easily */
+      align-items: center;                   /* center vertically */
+      justify-content: center;               /* center horizontally */
+      padding: 20px;
+      background: var(--bg);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text);
+    }
+
+    /* The white rounded panel holding the form and results. */
+    .card {
+      width: 100%;
+      max-width: 460px;                      /* never wider than 460px */
+      background: var(--card);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    /* The main heading. */
+    h1 {
+      margin: 0 0 4px;
+      font-size: 1.5rem;
+      text-align: center;
+    }
+
+    /* A smaller line of text under the heading. */
+    .subtitle {
+      margin: 0 0 22px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    /* Each label + input pair sits in its own field block. */
+    .field { margin-bottom: 16px; }
+
+    /* The small text labels above each input. */
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* The number input boxes. */
+    input {
+      width: 100%;
+      padding: 11px 12px;
+      font-size: 1rem;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      outline: none;                          /* remove browser default outline */
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    /* When the user clicks into an input, highlight it in blue. */
+    input:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    /* The big Calculate button. */
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #ffffff;
+      background: var(--brand);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;                        /* show a hand cursor on hover */
+      transition: background 0.15s;
+    }
+
+    /* Darken the button when the mouse hovers over it. */
+    button:hover { background: var(--brand-dark); }
+
+    /* The green box that shows the final answer. Hidden until we need it. */
+    .result {
+      display: none;                          /* JS switches this to "block" */
+      margin-top: 20px;
+      padding: 16px;
+      background: var(--green-bg);
+      color: var(--green-text);
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    /* The very large CAGR number inside the result box. */
+    .result .big {
+      font-size: 1.9rem;
+      font-weight: 800;
+      margin: 4px 0;
+    }
+
+    /* Small grey-ish labels inside the result box. */
+    .result .small { font-size: 0.85rem; }
+
+    /* The red box that shows an error message. Hidden until we need it. */
+    .error {
+      display: none;                          /* JS switches this to "block" */
+      margin-top: 20px;
+      padding: 12px;
+      background: var(--red-bg);
+      color: var(--red-text);
+      border-radius: 10px;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    /* A subtle footer line of text at the bottom of the card. */
+    .footnote {
+      margin: 18px 0 0;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- .card is the white panel. Everything the user sees lives inside it. -->
+  <main class="card">
+    <h1>📈 CAGR Calculator</h1>
+    <p class="subtitle">Compound Annual Growth Rate — the steady yearly growth rate between two values.</p>
+
+    <!-- The form. We attach an onsubmit handler in JS to run the calculation. -->
+    <form id="cagrForm">
+      <!-- Input 1: the starting value (decimals allowed). -->
+      <div class="field">
+        <label for="initialValue">Initial value</label>
+        <!--
+          type="number"  -> the browser knows only numbers go here.
+          step="any"     -> allows decimals like 1000.50 (not just whole numbers).
+          inputmode      -> on phones, shows a number-friendly keyboard.
+        -->
+        <input
+          id="initialValue"
+          type="number"
+          step="any"
+          inputmode="decimal"
+          placeholder="e.g. 1000.50"
+        />
+      </div>
+
+      <!-- Input 2: the ending value (decimals allowed). -->
+      <div class="field">
+        <label for="finalValue">Final value</label>
+        <input
+          id="finalValue"
+          type="number"
+          step="any"
+          inputmode="decimal"
+          placeholder="e.g. 1650.75"
+        />
+      </div>
+
+      <!-- Input 3: the number of years between those two values (decimals allowed). -->
+      <div class="field">
+        <label for="years">Number of years</label>
+        <input
+          id="years"
+          type="number"
+          step="any"
+          inputmode="decimal"
+          placeholder="e.g. 5"
+        />
+      </div>
+
+      <!-- The button that triggers the calculation. -->
+      <button type="submit">Calculate CAGR</button>
+    </form>
+
+    <!-- The result box. aria-live tells screen readers to announce changes. -->
+    <section id="result" class="result" aria-live="polite">
+      <div class="small">Compound Annual Growth Rate</div>
+      <div id="resultCagr" class="big">0.00%</div>
+      <div id="resultDetail" class="small"></div>
+    </section>
+
+    <!-- The error box. Also announced by screen readers. -->
+    <section id="error" class="error" role="alert"></section>
+
+    <p class="footnote">Formula: CAGR = (Final ÷ Initial)^(1 ÷ Years) − 1</p>
+  </main>
+
+
+  <script>
+    /* =====================================================================
+       JAVASCRIPT = the LOGIC (the math and the behaviour).
+       Every function below has a comment explaining what it does.
+       The code reads top to bottom; the last block is what actually starts
+       everything when the page loads.
+       All values are handled as ordinary JavaScript numbers (floats), which
+       is what lets us accept decimal inputs like 1000.50.
+       ===================================================================== */
+
+    "use strict"; // Makes JS stricter: catches common beginner mistakes as errors.
+
+    /* -------------------------------------------------------------------
+       GATHER REFERENCES TO THE PAGE ELEMENTS
+       -------------------------------------------------------------------
+       document.getElementById("x") finds the HTML element whose id="x".
+       We store each one in a variable (a named container) so we can read
+       or change it later without searching the page every time.
+       These names map directly to the ids used in the HTML above.
+       ------------------------------------------------------------------- */
+    const form = document.getElementById("cagrForm");             // the <form>
+    const initialInput = document.getElementById("initialValue"); // box 1
+    const finalInput = document.getElementById("finalValue");     // box 2
+    const yearsInput = document.getElementById("years");          // box 3
+    const resultBox = document.getElementById("result");          // green box
+    const resultCagr = document.getElementById("resultCagr");     // big number
+    const resultDetail = document.getElementById("resultDetail"); // small line
+    const errorBox = document.getElementById("error");            // red box
+
+    /* -------------------------------------------------------------------
+       FUNCTION: parseNumber
+       -------------------------------------------------------------------
+       WHAT IT DOES:
+         Takes the raw text a user typed into an input box and converts it
+         into a real number we can do math with.
+
+       WHY IT IS NEEDED:
+         Input boxes give us text (a "string"). "1000.50" is text, not yet a
+         number. Number("1000.50") turns it into the number 1000.5.
+
+       HOW IT WORKS:
+         - rawValue.trim() removes any accidental spaces around the text.
+         - An empty string ("") means the user left the box blank, so we
+           return NaN ("Not a Number") to signal "this input is unusable".
+         - Otherwise we convert to a number and return it.
+       ------------------------------------------------------------------- */
+    function parseNumber(rawValue) {
+      const trimmed = rawValue.trim();          // remove surrounding spaces
+      if (trimmed === "") return NaN;           // blank box -> invalid (NaN)
+      return Number(trimmed);                   // convert text -> number
+    }
+
+    /* -------------------------------------------------------------------
+       FUNCTION: validateInputs
+       -------------------------------------------------------------------
+       WHAT IT DOES:
+         Checks the three numbers for problems BEFORE we do the math, and
+         returns a friendly error message if something is wrong.
+         If everything is fine it returns an empty string ("").
+
+       WHY IT IS NEEDED:
+         The CAGR formula cannot handle certain values:
+           - NaN (blank or non-numeric input) -> cannot calculate.
+           - Initial value of 0 -> dividing by zero is impossible.
+           - Negative initial value -> powers of negatives give confusing results.
+           - Years <= 0 -> the exponent (1 / years) would divide by zero or
+             point time backwards, which makes no sense.
+         Catching these early lets us show a clear message instead of "NaN".
+
+       PARAMETERS (the inputs to this function):
+         initial - the starting value (a number)
+         final   - the ending value (a number)
+         years   - the number of years (a number)
+
+       RETURNS:
+         A string error message, or "" when the inputs are all valid.
+       ------------------------------------------------------------------- */
+    function validateInputs(initial, final, years) {
+      // Number.isNaN(x) is true when x is "Not a Number".
+      if (Number.isNaN(initial)) return "Please enter a valid number for the initial value.";
+      if (Number.isNaN(final)) return "Please enter a valid number for the final value.";
+      if (Number.isNaN(years)) return "Please enter a valid number for the number of years.";
+
+      // The starting value must be a positive number.
+      if (initial <= 0) return "The initial value must be greater than zero.";
+
+      // The final value must not be negative (a value can't be less than nothing).
+      if (final < 0) return "The final value cannot be negative.";
+
+      // The time span must be more than zero so the exponent 1/years is valid.
+      if (years <= 0) return "The number of years must be greater than zero.";
+
+      // No problems found: return an empty string to mean "all good".
+      return "";
+    }
+
+    /* -------------------------------------------------------------------
+       FUNCTION: calculateCAGR
+       -------------------------------------------------------------------
+       WHAT IT DOES:
+         Performs the actual Compound Annual Growth Rate math.
+
+       THE FORMULA:
+         CAGR = (Final / Initial) ^ (1 / Years) - 1
+         In words: how much does the value need to grow EACH YEAR, at a
+         steady compounded rate, to get from Initial to Final in N years?
+
+       PARAMETERS:
+         initial - starting value (a number, already validated > 0)
+         final   - ending value   (a number, already validated >= 0)
+         years   - number of years (a number, already validated > 0)
+
+       RETURNS:
+         The CAGR as a DECIMAL fraction (e.g. 0.0718 means 7.18%).
+         We keep it as a decimal here and convert to a percentage only when
+         we display it, which keeps the math clean and reusable.
+
+       HOW IT WORKS STEP BY STEP:
+         1. ratio        = final / initial   -> the total growth factor.
+            (a ratio of 2 means the value doubled overall.)
+         2. Math.pow(ratio, 1 / years) -> "spread" that growth evenly across
+            each year. Math.pow(base, exponent) raises base to a power.
+         3. Subtract 1 to turn the growth factor into a growth RATE.
+            (a factor of 1 means no growth, so the rate is 0.)
+       ------------------------------------------------------------------- */
+    function calculateCAGR(initial, final, years) {
+      const ratio = final / initial;                        // step 1
+      const annualFactor = Math.pow(ratio, 1 / years);      // step 2
+      const cagr = annualFactor - 1;                        // step 3
+      return cagr;                                          // decimal, e.g. 0.0718
+    }
+
+    /* -------------------------------------------------------------------
+       FUNCTION: formatPercent
+       -------------------------------------------------------------------
+       WHAT IT DOES:
+         Turns a decimal fraction into a nicely formatted percentage string.
+
+       WHY IT IS NEEDED:
+         The user thinks in percentages (7.18%), but the math returns
+         decimals (0.0718). This function bridges that gap and rounds to a
+         readable 2 decimal places.
+
+       PARAMETER:
+         value - a decimal fraction (e.g. 0.0718 or -0.2063)
+
+       RETURNS:
+         A string like "7.18%" or "-20.63%".
+
+       HOW IT WORKS:
+         - value * 100 converts the fraction to a percentage number.
+         - .toFixed(2) rounds it to exactly 2 decimal places and returns text.
+         - We append "%" to complete the label.
+       ------------------------------------------------------------------- */
+    function formatPercent(value) {
+      return (value * 100).toFixed(2) + "%";
+    }
+
+    /* -------------------------------------------------------------------
+       FUNCTION: showError
+       -------------------------------------------------------------------
+       WHAT IT DOES:
+         Displays an error message to the user in the red box.
+
+       PARAMETER:
+         message - the text to show (a string).
+
+       HOW IT WORKS:
+         - We set the box's text using textContent (safe: treats it as plain
+           text, never as code).
+         - We change its CSS display to "block" so the hidden box appears.
+         - We hide the result box so a stale answer isn't left on screen.
+       ------------------------------------------------------------------- */
+    function showError(message) {
+      errorBox.textContent = message;    // put the message in the red box
+      errorBox.style.display = "block";  // make the red box visible
+      resultBox.style.display = "none";  // hide any old result
+    }
+
+    /* -------------------------------------------------------------------
+       FUNCTION: clearError
+       -------------------------------------------------------------------
+       WHAT IT DOES:
+         Hides the red error box. We call this at the start of every
+         calculation so an old error doesn't linger after the user fixes it.
+
+       HOW IT WORKS:
+         - Empty out any old text.
+         - Set display back to "none" to hide the box.
+       ------------------------------------------------------------------- */
+    function clearError() {
+      errorBox.textContent = "";         // remove old message text
+      errorBox.style.display = "none";   // hide the red box
+    }
+
+
+    /* -------------------------------------------------------------------
+       FUNCTION: showResult
+       -------------------------------------------------------------------
+       WHAT IT DOES:
+         Displays the successful calculation in the green result box.
+
+       PARAMETERS:
+         cagr    - the CAGR as a decimal fraction (e.g. 0.0718)
+         initial - starting value (used only for the extra detail line)
+         final   - ending value   (used only for the extra detail line)
+
+       HOW IT WORKS:
+         - The big number: format the CAGR as a percentage.
+         - The detail line: show the total change and whether the value grew
+           or shrank, for extra context.
+         - Make the green box visible and hide the red error box.
+       ------------------------------------------------------------------- */
+    function showResult(cagr, initial, final) {
+      // The headline: the compound annual growth rate as a percentage.
+      resultCagr.textContent = formatPercent(cagr);
+
+      // Extra context: total change and direction of change.
+      const totalPercent = (final / initial) * 100;        // e.g. 165 means 165% of initial
+      const direction = cagr > 0 ? "growth" : cagr < 0 ? "decline" : "no change";
+      resultDetail.textContent =
+        "Final value is " + totalPercent.toFixed(2) +
+        "% of initial — overall " + direction;
+
+      // Show the green box, hide the red box.
+      resultBox.style.display = "block";
+      errorBox.style.display = "none";
+    }
+
+    /* -------------------------------------------------------------------
+       FUNCTION: handleCalculate
+       -------------------------------------------------------------------
+       WHAT IT DOES:
+         This is the "traffic controller". It runs every time the user
+         presses the Calculate button (or hits Enter in a field). It reads
+         the inputs, validates them, runs the math, and shows the result.
+
+       PARAMETER:
+         event - the browser "submit" event. We call event.preventDefault()
+                 to stop the browser's default behaviour of reloading the
+                 page (which would wipe our result).
+
+       STEPS:
+         1. Stop the page from reloading.
+         2. Read and convert the three inputs from text to numbers.
+         3. Validate them; if there's an error, show it and stop.
+         4. Otherwise calculate the CAGR and show the result.
+       ------------------------------------------------------------------- */
+    function handleCalculate(event) {
+      event.preventDefault();            // step 1: don't reload the page
+      clearError();                      // remove any previous error message
+
+      // step 2: convert the raw text in each box into a number.
+      const initial = parseNumber(initialInput.value);
+      const final = parseNumber(finalInput.value);
+      const years = parseNumber(yearsInput.value);
+
+      // step 3: check for problems. "errorMessage" is "" when all is well.
+      const errorMessage = validateInputs(initial, final, years);
+      if (errorMessage !== "") {
+        showError(errorMessage);         // tell the user what's wrong
+        return;                          // stop here; do not calculate
+      }
+
+      // step 4: all inputs are valid, so do the math and display it.
+      const cagr = calculateCAGR(initial, final, years);
+      showResult(cagr, initial, final);
+    }
+
+    /* -------------------------------------------------------------------
+       STARTING THE APP
+       -------------------------------------------------------------------
+       addEventListener("submit", ...) tells the browser: "when this form is
+       submitted, run handleCalculate". A form is submitted by clicking the
+       button OR by pressing Enter while focused in any of its inputs, so
+       this single line wires up both behaviours.
+       ------------------------------------------------------------------- */
+    form.addEventListener("submit", handleCalculate);
+
+  </script>
+</body>
+</html>
+
